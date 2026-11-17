@@ -45,9 +45,17 @@ export default function LoginPage() {
       return;
     }
 
-    // Navigate to intended destination or role-based dashboard
-    // Role-based redirect is handled by PublicOnlyRoute / AuthContext
-    navigate(from || '/patient/dashboard', { replace: true });
+    // Navigate to intended destination or role-based dashboard.
+    // If the user came from a protected page, go back there.
+    // Otherwise let PublicOnlyRoute pick the right dashboard via its own redirect,
+    // or fall back explicitly to patient dashboard.
+    if (from && from !== '/login' && from !== '/register') {
+      navigate(from, { replace: true });
+    } else {
+      // PublicOnlyRoute will redirect once isAuthenticated becomes true.
+      // We also navigate explicitly in case the component doesn't re-render.
+      navigate('/patient/dashboard', { replace: true });
+    }
   }
 
   return (

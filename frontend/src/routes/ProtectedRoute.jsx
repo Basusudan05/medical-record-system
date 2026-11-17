@@ -4,49 +4,50 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 
 /**
  * ProtectedRoute
- * Wraps any route that requires authentication.
  *
- * Props:
- *   requiredRole — 'patient' | 'doctor' | undefined (any authenticated user)
- *   children     — the page component to render when access is granted
- *
- * Behaviour:
- *   - While auth state is resolving (page refresh): shows a full-screen spinner.
- *   - Not authenticated: redirects to /login, preserving the intended URL.
- *   - Wrong role: redirects to the user's own dashboard.
- *   - Correct role: renders children.
+ * Guards:
+ *   1. loading=true → spinner (initial page load / session resolution)
+ *   2. not authenticated → redirect to /login
+ *   3. authenticated but profile still loading → spinner (profile fetch in progress)
+ *   4. wrong role → redirect to correct dashboard
+ *   5. correct → render children
  */
 export default function ProtectedRoute({ requiredRole, children }) {
   const { isAuthenticated, profile, loading } = useAuth();
   const location = useLocation();
 
-  // Wait for Supabase to resolve the session on first load
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--color-bg-main)',
-      }}>
-        <LoadingSpinner size="lg" label="Checking session…" />
-      </div>
-    );
-  }
+  const spinner = (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--color-bg-main)',
+    }}>
+      <LoadingSpinner size="lg" label="Loading…" />
+    </div>
+  );
 
-  // Not logged in → go to login, remember where they were trying to go
+  // 1. Initial session resolution
+  if (loading) return spinner;
+
+  // 2. Not logged in
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Wrong role → redirect to their own dashboard
-  if (requiredRole && profile?.role !== requiredRole) {
-    const redirect = profile?.role === 'doctor'
+  // 3. Logged in but profile row hasn't been fetched yet
+  //    (can happen for ~100ms after a fresh registration)
+  if (requiredRole && !profile) return spinner;
+
+  // 4. Wrong role
+  if (requiredRole && profile.role !== requiredRole) {
+    const redirect = profile.role === 'doctor'
       ? '/doctor/dashboard'
       : '/patient/dashboard';
     return <Navigate to={redirect} replace />;
   }
 
+  // 5. Authorised
   return children;
 }
