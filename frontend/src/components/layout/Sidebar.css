@@ -1,0 +1,151 @@
+/* ── Sidebar ── shared by PatientSidebar and DoctorSidebar */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: #0f172a;           /* very dark navy — not pure black */
+  padding: 0;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+}
+
+/* Logo row */
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 20px var(--space-5) 16px;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: var(--space-3);
+}
+
+.sidebar__logo-icon {
+  color: var(--color-teal);
+}
+
+.sidebar__logo-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.2px;
+}
+
+/* Nav section label */
+.sidebar__section-label {
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+/* Nav links */
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-3);
+  flex: 1;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: #94a3b8;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  text-decoration: none;
+}
+
+.sidebar__link:hover {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.sidebar__link--active {
+  background: #134e4a;    /* teal dark */
+  color: #99f6e4;         /* teal light text */
+}
+
+.sidebar__link--active svg {
+  color: #2dd4bf;
+}
+
+/* Bottom user section */
+.sidebar__footer {
+  padding: var(--space-4) var(--space-3);
+  border-top: 1px solid #1e293b;
+  margin-top: auto;
+}
+
+.sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.sidebar__user:hover {
+  background: #1e293b;
+}
+
+.sidebar__user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-teal);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sidebar__user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar__user-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__user-role {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+    min-height: 100dvh;
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+}
