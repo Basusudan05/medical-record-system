@@ -343,3 +343,26 @@
     white-space: nowrap;
   }
 }
+
+/* ── Inline alerts (save feedback) ── */
+.prof__alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-4);
+}
+
+.prof__alert--error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: var(--color-error);
+}
+
+.prof__alert--success {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}

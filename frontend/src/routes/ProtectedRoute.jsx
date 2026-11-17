@@ -1,31 +1,51 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 /**
  * ProtectedRoute
- * Guards routes that require authentication.
+ * Wraps any route that requires authentication.
  *
- * Task 2 development mode:
- *   DEV_BYPASS = true  → all protected routes render directly (no redirect)
- *   This flag is flipped to false in Phase 3 when real auth context is wired.
+ * Props:
+ *   requiredRole — 'patient' | 'doctor' | undefined (any authenticated user)
+ *   children     — the page component to render when access is granted
  *
- * Phase 3: replace DEV_BYPASS + mock values with:
- *   const { isAuthenticated, user } = useAuth();
+ * Behaviour:
+ *   - While auth state is resolving (page refresh): shows a full-screen spinner.
+ *   - Not authenticated: redirects to /login, preserving the intended URL.
+ *   - Wrong role: redirects to the user's own dashboard.
+ *   - Correct role: renders children.
  */
-const DEV_BYPASS = true; // ← flip to false when auth context is ready (Phase 3)
-
 export default function ProtectedRoute({ requiredRole, children }) {
-  if (DEV_BYPASS) return children;
+  const { isAuthenticated, profile, loading } = useAuth();
+  const location = useLocation();
 
-  // Real auth — wired in Phase 3
-  const isAuthenticated = false;
-  const userRole = null;
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  // Wait for Supabase to resolve the session on first load
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--color-bg-main)',
+      }}>
+        <LoadingSpinner size="lg" label="Checking session…" />
+      </div>
+    );
   }
 
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to={userRole === 'doctor' ? '/doctor/dashboard' : '/patient/dashboard'} replace />;
+  // Not logged in → go to login, remember where they were trying to go
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Wrong role → redirect to their own dashboard
+  if (requiredRole && profile?.role !== requiredRole) {
+    const redirect = profile?.role === 'doctor'
+      ? '/doctor/dashboard'
+      : '/patient/dashboard';
+    return <Navigate to={redirect} replace />;
   }
 
   return children;

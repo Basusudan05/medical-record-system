@@ -314,3 +314,23 @@
     padding-top: var(--space-10);
   }
 }
+
+/* ── Error banner (shown above the form) ── */
+.auth-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  line-height: 1.5;
+}
+
+.auth-error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PatientSidebar from './PatientSidebar';
 import DoctorSidebar from './DoctorSidebar';
 import Header from './Header';
-import { MOCK_USER } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 import './AppLayout.css';
 
 /**
@@ -10,12 +10,16 @@ import './AppLayout.css';
  * Shell for every authenticated page.
  *
  * Props:
- *   role     — 'patient' | 'doctor'
- *   title    — current page title
+ *   role     — 'patient' | 'doctor'  (passed by each page)
+ *   title    — current page title shown in the header
  *   children — page content
+ *
+ * User data comes from AuthContext — no more MOCK_USER.
  */
 export default function AppLayout({ role = 'patient', title = '', children }) {
+  const { profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const Sidebar = role === 'doctor' ? DoctorSidebar : PatientSidebar;
 
   return (
@@ -23,11 +27,12 @@ export default function AppLayout({ role = 'patient', title = '', children }) {
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        profile={profile}
       />
       <div className="app-layout__main">
         <Header
           title={title}
-          user={MOCK_USER}
+          user={profile}
           onMenuClick={() => setSidebarOpen(true)}
         />
         <main className="app-layout__content" id="main-content">

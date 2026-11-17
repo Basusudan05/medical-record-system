@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, QrCode, FolderOpen, User, LogOut, Activity } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -13,6 +14,19 @@ const BOTTOM_ITEMS = [
 ];
 
 export default function DoctorSidebar({ isOpen, onClose }) {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    onClose?.();
+    await logout();
+    navigate('/', { replace: true });
+  }
+
+  const initials = profile?.full_name
+    ? profile.full_name.charAt(0).toUpperCase()
+    : 'D';
+
   return (
     <>
       {isOpen && (
@@ -49,7 +63,9 @@ export default function DoctorSidebar({ isOpen, onClose }) {
             </NavLink>
           ))}
 
-          <span className="sidebar__section-label" style={{ marginTop: 'var(--space-4)' }}>Account</span>
+          <span className="sidebar__section-label" style={{ marginTop: 'var(--space-4)' }}>
+            Account
+          </span>
           {BOTTOM_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -66,13 +82,15 @@ export default function DoctorSidebar({ isOpen, onClose }) {
         </nav>
 
         <div className="sidebar__footer">
-          <div className="sidebar__user">
-            <div className="sidebar__user-avatar">D</div>
+          <div className="sidebar__user" onClick={handleLogout} title="Sign out">
+            <div className="sidebar__user-avatar">{initials}</div>
             <div className="sidebar__user-info">
-              <div className="sidebar__user-name">Demo Doctor</div>
-              <div className="sidebar__user-role">Doctor</div>
+              <div className="sidebar__user-name">
+                {profile?.full_name || 'Doctor'}
+              </div>
+              <div className="sidebar__user-role">Doctor · Sign out</div>
             </div>
-            <LogOut size={15} style={{ color: '#475569' }} />
+            <LogOut size={15} style={{ color: '#475569', flexShrink: 0 }} />
           </div>
         </div>
       </aside>

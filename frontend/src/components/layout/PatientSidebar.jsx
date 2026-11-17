@@ -1,16 +1,9 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Upload,
-  ClipboardList,
-  Bot,
-  QrCode,
-  User,
-  Settings,
-  Activity,
-  LogOut,
+  LayoutDashboard, Upload, ClipboardList,
+  Bot, QrCode, User, Settings, Activity, LogOut,
 } from 'lucide-react';
-import { MOCK_USER } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -27,9 +20,21 @@ const BOTTOM_ITEMS = [
 ];
 
 export default function PatientSidebar({ isOpen, onClose }) {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    onClose?.();
+    await logout();
+    navigate('/', { replace: true });
+  }
+
+  const initials = profile?.full_name
+    ? profile.full_name.charAt(0).toUpperCase()
+    : '?';
+
   return (
     <>
-      {/* Backdrop (mobile) */}
       {isOpen && (
         <div
           className="sidebar-backdrop"
@@ -66,7 +71,9 @@ export default function PatientSidebar({ isOpen, onClose }) {
             </NavLink>
           ))}
 
-          <span className="sidebar__section-label" style={{ marginTop: 'var(--space-4)' }}>Account</span>
+          <span className="sidebar__section-label" style={{ marginTop: 'var(--space-4)' }}>
+            Account
+          </span>
           {BOTTOM_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -82,17 +89,17 @@ export default function PatientSidebar({ isOpen, onClose }) {
           ))}
         </nav>
 
-        {/* User info at bottom */}
+        {/* User + logout */}
         <div className="sidebar__footer">
-          <div className="sidebar__user">
-            <div className="sidebar__user-avatar">
-              {MOCK_USER.full_name.charAt(0)}
-            </div>
+          <div className="sidebar__user" onClick={handleLogout} title="Sign out">
+            <div className="sidebar__user-avatar">{initials}</div>
             <div className="sidebar__user-info">
-              <div className="sidebar__user-name">{MOCK_USER.full_name}</div>
-              <div className="sidebar__user-role">Patient</div>
+              <div className="sidebar__user-name">
+                {profile?.full_name || 'Patient'}
+              </div>
+              <div className="sidebar__user-role">Patient · Sign out</div>
             </div>
-            <LogOut size={15} style={{ color: '#475569' }} />
+            <LogOut size={15} style={{ color: '#475569', flexShrink: 0 }} />
           </div>
         </div>
       </aside>

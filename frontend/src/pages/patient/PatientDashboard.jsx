@@ -7,7 +7,8 @@ import {
 import AppLayout from '../../components/layout/AppLayout';
 import DocTypeBadge from '../../components/common/DocTypeBadge';
 import StatusBadge from '../../components/common/StatusBadge';
-import { MOCK_RECORDS, MOCK_STATS, MOCK_ACTIVITY, MOCK_USER } from '../../data/mockData';
+import { MOCK_RECORDS, MOCK_STATS, MOCK_ACTIVITY } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 import './PatientDashboard.css';
 
 const QUICK_ACTIONS = [
@@ -44,6 +45,8 @@ function formatTime(iso) {
 }
 
 export default function PatientDashboard() {
+  const { profile } = useAuth();
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
   const recentRecords = MOCK_RECORDS.slice(0, 5);
   const recentActivity = MOCK_ACTIVITY.slice(0, 5);
 
@@ -54,7 +57,7 @@ export default function PatientDashboard() {
         <div className="pd__welcome">
           <div>
             <h2 className="pd__greeting">
-              {getGreeting()}, {MOCK_USER.full_name.split(' ')[0]}
+              {getGreeting()}, {firstName}
             </h2>
             <p className="pd__welcome-sub">
               Here&rsquo;s a summary of your medical records.
