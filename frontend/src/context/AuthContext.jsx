@@ -4,19 +4,16 @@ import { supabase } from '../lib/supabase';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
+  const [user,    setUser]    = useState(null);
   const [profile, setProfile] = useState(null);
-  // loading = true only while the INITIAL session check on page load is running.
-  // It is NOT toggled during login/register — the onAuthStateChange listener
-  // handles all state updates after that.
+  // loading is true ONLY while the initial session check runs on page load.
+  // login() and register() do NOT touch this flag —
+  // onAuthStateChange handles all state updates after the initial load.
   const [loading, setLoading] = useState(true);
 
-  // ── Fetch profile from public.profiles ───────────────────────
+  // ── Fetch profile row ─────────────────────────────────────────
   const fetchProfile = useCallback(async (userId) => {
-    if (!userId) {
-      setProfile(null);
-      return;
-    }
+    if (!userId) { setProfile(null); return; }
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -24,11 +21,17 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .single();
 
-      if (error) {
-        // PGRST116 = no row found (profile trigger may not have run yet)
-        if (error.code !== 'PGRST116') {
-          console.error('[AuthContext] fetchProfile:', error.message);
-        }
+      // PGRST116 = row not found (trigger may not have run yet — retry once)
+      if (error?.code === 'PGRST116') {
+        await new Promise(r => setTimeout(r, 800));
+        const retry = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        setProfile(retry.data ?? null);
+      } else if (error) {
+        console.error('[AuthContext] fetchProfile:', error.message);
         setProfile(null);
       } else {
         setProfile(data);
@@ -39,58 +42,55 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // ── Single auth state listener (handles ALL auth events) ─────
+  // ── Single auth state listener ────────────────────────────────
   useEffect(() => {
-    // 1. Resolve the session that already exists (page refresh, tab reopen)
+    // Resolve existing session on page load / refresh
     supabase.auth.getSession().then(({ data: { session } }) => {
       const authUser = session?.user ?? null;
       setUser(authUser);
-      // fetchProfile resolves then we clear the initial loading flag exactly once
       fetchProfile(authUser?.id).finally(() => setLoading(false));
     });
 
-    // 2. React to every future auth change (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED…)
+    // React to every auth event going forward
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const authUser = session?.user ?? null;
         setUser(authUser);
         await fetchProfile(authUser?.id);
-        // After the initial load, loading is already false.
-        // We still call setLoading(false) here to cover the edge case where
-        // onAuthStateChange fires before getSession resolves.
-        setLoading(false);
+        setLoading(false); // safe to call multiple times
       }
     );
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  // ── register ─────────────────────────────────────────────────
-  // Does NOT touch loading state — onAuthStateChange handles it.
+  // ── register ──────────────────────────────────────────────────
+  // Does NOT set loading — onAuthStateChange handles state updates
   const register = useCallback(async ({ full_name, email, password, role }) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: {
-          data: { full_name: full_name.trim(), role },
-        },
+        options: { data: { full_name: full_name.trim(), role } },
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
 
-      // data.session is null  → email confirmation required
-      // data.session is set   → auto-confirmed, user is logged in immediately
-      return { success: true, requiresConfirmation: !data.session, data };
+      // requiresConfirmation = true  → email confirmation is enabled
+      // requiresConfirmation = false → user is logged in immediately
+      return {
+        success: true,
+        requiresConfirmation: !data.session,
+        role,
+        data,
+      };
     } catch (e) {
       return { success: false, error: e.message || 'Registration failed.' };
     }
   }, []);
 
-  // ── login ────────────────────────────────────────────────────
-  // Does NOT touch loading state — onAuthStateChange handles it.
+  // ── login ─────────────────────────────────────────────────────
+  // Does NOT set loading — onAuthStateChange handles state updates
   const login = useCallback(async ({ email, password }) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -98,10 +98,7 @@ export function AuthProvider({ children }) {
         password,
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
+      if (error) return { success: false, error: error.message };
       return { success: true, data };
     } catch (e) {
       return { success: false, error: e.message || 'Login failed.' };
@@ -111,7 +108,7 @@ export function AuthProvider({ children }) {
   // ── logout ────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
-    // onAuthStateChange will fire SIGNED_OUT and clear user/profile
+    // onAuthStateChange fires SIGNED_OUT → clears user and profile
   }, []);
 
   // ── refreshProfile ────────────────────────────────────────────
@@ -119,19 +116,12 @@ export function AuthProvider({ children }) {
     return fetchProfile(user?.id);
   }, [fetchProfile, user?.id]);
 
-  const value = {
-    user,
-    profile,
-    loading,
-    isAuthenticated: !!user,
-    register,
-    login,
-    logout,
-    refreshProfile,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user, profile, loading,
+      isAuthenticated: !!user,
+      register, login, logout, refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   );
