@@ -65,20 +65,14 @@ export default function RegisterPage() {
       return;
     }
 
-    if (result.requiresConfirmation) {
-      // Email confirmation is enabled in Supabase — show the check-your-email screen.
+    // Supabase may require email confirmation depending on project settings.
+    // If a session was returned, navigate to dashboard; otherwise show success.
+    if (result.data?.session) {
+      navigate(form.role === 'doctor' ? '/doctor/dashboard' : '/patient/dashboard', { replace: true });
+    } else {
+      // Email confirmation required
       setSuccess(true);
-      return;
     }
-
-    // Email confirmation is disabled — session was created immediately.
-    // onAuthStateChange has already (or will very shortly) update the auth
-    // context. Navigate to the dashboard; ProtectedRoute will let us through
-    // once the context reflects the new session.
-    navigate(
-      form.role === 'doctor' ? '/doctor/dashboard' : '/patient/dashboard',
-      { replace: true }
-    );
   }
 
   // ── Success screen (email confirmation required) ─────────────

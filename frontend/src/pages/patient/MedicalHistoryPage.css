@@ -28,6 +28,9 @@
 }
 
 .mh__upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: #fff;
@@ -241,4 +244,64 @@
   .mh__table tbody td:nth-child(5) {
     display: none;
   }
+}
+
+/* ── Loading / Error ── */
+.mh__loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Action buttons ── */
+.mh__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mh__action-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.mh__action-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-teal);
+}
+
+.mh__action-btn--danger:hover {
+  background: #fee2e2;
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+/* ── Extra table columns ── */
+.mh__size {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.mh__doc-type {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  font-weight: 500;
 }

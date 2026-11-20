@@ -406,3 +406,63 @@
     order: -1;
   }
 }
+
+/* ── Document name input ── */
+.up__text-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: #fff;
+  outline: none;
+  font-family: var(--font-family);
+  transition: border-color var(--transition-fast);
+}
+
+.up__text-input:focus {
+  border-color: var(--color-teal);
+}
+
+.up__text-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.up__optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* ── Upload spinner ── */
+.up__spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: up-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes up-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Disabled category option ── */
+.up__category-opt--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Success meta row ── */
+.up__success-meta {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+  justify-content: center;
+}
