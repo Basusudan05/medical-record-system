@@ -1,32 +1,29 @@
 import { supabase } from '../lib/supabase';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 /**
- * getAuthToken
- * Reads the current Supabase session JWT and returns it as a Bearer header value.
- * Returns null if not authenticated.
+ * API calls use a RELATIVE base path (/api/...) so the Vite dev-server
+ * proxy forwards them to http://localhost:5000.
+ * This avoids CORS issues caused by cross-origin fetch from the browser.
+ *
+ * In production the same relative path works because the frontend and
+ * backend are served from the same domain, or a reverse proxy is in place.
  */
+const API_BASE = '/api';
+
 async function getAuthToken() {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ? `Bearer ${session.access_token}` : null;
 }
 
 /**
- * startOcr
- * Calls POST /api/ocr/process/:recordId on the backend.
- * The backend downloads the file server-side and calls OCR.space.
- *
- * @param {string} recordId
- * @param {{ engine?: 2|3, force?: boolean }} options
- * @returns {{ success, extractedText?, cached?, error? }}
+ * startOcr — POST /api/ocr/process/:recordId
  */
 export async function startOcr(recordId, { engine = 3, force = false } = {}) {
   const token = await getAuthToken();
   if (!token) return { success: false, error: 'Not authenticated.' };
 
   try {
-    const res = await fetch(`${API_BASE}/api/ocr/process/${recordId}`, {
+    const res = await fetch(`${API_BASE}/ocr/process/${recordId}`, {
       method:  'POST',
       headers: {
         'Content-Type':  'application/json',
@@ -36,47 +33,34 @@ export async function startOcr(recordId, { engine = 3, force = false } = {}) {
     });
 
     const data = await res.json();
-
-    if (!res.ok) {
-      return { success: false, error: data.error || `Server error (${res.status}).` };
-    }
-
+    if (!res.ok) return { success: false, error: data.error || `Server error (${res.status}).` };
     return data;
+
   } catch (e) {
-    if (e.name === 'TypeError' && e.message.includes('fetch')) {
-      return {
-        success: false,
-        error: 'Cannot reach the backend server. Make sure it is running on port 5000.',
-      };
-    }
-    return { success: false, error: e.message || 'OCR request failed.' };
+    return {
+      success: false,
+      error: 'Cannot reach the backend server. Make sure it is running (cd backend && npm run dev).',
+    };
   }
 }
 
 /**
- * getOcrResult
- * Calls GET /api/ocr/result/:recordId — returns saved OCR text if available.
- *
- * @param {string} recordId
- * @returns {{ success, extractedText?, processingStatus?, extractedAt?, error? }}
+ * getOcrResult — GET /api/ocr/result/:recordId
  */
 export async function getOcrResult(recordId) {
   const token = await getAuthToken();
   if (!token) return { success: false, error: 'Not authenticated.' };
 
   try {
-    const res = await fetch(`${API_BASE}/api/ocr/result/${recordId}`, {
+    const res = await fetch(`${API_BASE}/ocr/result/${recordId}`, {
       headers: { 'Authorization': token },
     });
 
     const data = await res.json();
-
-    if (!res.ok) {
-      return { success: false, error: data.error || `Server error (${res.status}).` };
-    }
-
+    if (!res.ok) return { success: false, error: data.error || `Server error (${res.status}).` };
     return data;
+
   } catch (e) {
-    return { success: false, error: e.message || 'Could not fetch OCR result.' };
+    return { success: false, error: 'Could not fetch OCR result.' };
   }
 }

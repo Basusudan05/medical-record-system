@@ -15,9 +15,23 @@ import ocrRouter     from './routes/ocr.js';
 const app = express();
 
 // ── CORS ──────────────────────────────────────────────────────────────
+// Allow Vite dev server on 5173 OR 5174 (Vite auto-increments if port is busy).
+// In production, set FRONTEND_URL to your actual deployed domain.
+const allowedOrigins = [
+  config.frontendUrl,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+];
+
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
