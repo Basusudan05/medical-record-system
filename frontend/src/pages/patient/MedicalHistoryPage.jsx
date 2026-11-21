@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Search, ArrowRight, Clock, FileText,
-  Eye, Download, Trash2, Upload,
+  Search, Clock, FileText,
+  Eye, Download, Trash2, Upload, ArrowUpRight,
 } from 'lucide-react';
 import AppLayout from '../../components/layout/AppLayout';
 import DocTypeBadge from '../../components/common/DocTypeBadge';
@@ -250,6 +250,14 @@ export default function MedicalHistoryPage() {
                         >
                           <Download size={14} />
                         </button>
+                        <Link
+                          to={`/patient/records/${rec.id}`}
+                          className="mh__action-btn"
+                          title="View details & extract text"
+                          aria-label="View details"
+                        >
+                          <ArrowUpRight size={14} />
+                        </Link>
                         <button
                           className="mh__action-btn mh__action-btn--danger"
                           onClick={() => setDeleteTarget(rec)}

@@ -1,41 +1,121 @@
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, Calendar, Building2,
-  User, AlertCircle, CheckCircle2, Clock, QrCode,
-  Download, ExternalLink,
+  ArrowLeft, FileText, Calendar, Clock,
+  AlertCircle, QrCode, Download, Eye,
 } from 'lucide-react';
 import AppLayout from '../../components/layout/AppLayout';
 import DocTypeBadge from '../../components/common/DocTypeBadge';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
-import { MOCK_RECORDS } from '../../data/mockData';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import OcrPanel from '../../components/common/OcrPanel';
+import DocumentPreviewModal from '../../components/common/DocumentPreviewModal';
+import Toast from '../../components/common/Toast';
+import { useAuth } from '../../context/AuthContext';
+import { useDocuments } from '../../hooks/useDocuments';
+import { supabase } from '../../lib/supabase';
 import './DocumentDetailsPage.css';
 
 function formatDate(iso) {
+  if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 }
 
+function formatSize(bytes, kb) {
+  const b = bytes || (kb ? kb * 1024 : 0);
+  if (!b) return '—';
+  if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function DocumentDetailsPage() {
   const { id } = useParams();
-  const record = MOCK_RECORDS.find(r => r.id === id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { getSignedUrl } = useDocuments();
 
-  if (!record) {
+  const [record,    setRecord]    = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState('');
+  const [toast,     setToast]     = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Fetch the specific record from Supabase (enforces RLS — user can only get their own)
+  useEffect(() => {
+    if (!user?.id || !id) return;
+
+    async function load() {
+      setLoading(true);
+      setError('');
+      const { data, error: err } = await supabase
+        .from('medical_records')
+        .select('*')
+        .eq('id', id)
+        .eq('patient_id', user.id)
+        .single();
+
+      if (err || !data) {
+        setError('Document not found or you do not have access to it.');
+      } else {
+        setRecord(data);
+      }
+      setLoading(false);
+    }
+
+    load();
+  }, [id, user?.id]);
+
+  async function handlePreview() {
+    if (!record?.file_path) return;
+    setPreviewUrl(null);
+    setShowPreview(true);
+    const url = await getSignedUrl(record.file_path);
+    setPreviewUrl(url);
+  }
+
+  async function handleDownload() {
+    if (!record?.file_path) return;
+    const url = await getSignedUrl(record.file_path);
+    if (!url) { setToast({ message: 'Could not generate download link.', type: 'error' }); return; }
+    const a = document.createElement('a');
+    a.href = url; a.download = record.document_name || 'document';
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  // Called by OcrPanel after successful/failed OCR to refresh status badge
+  function handleStatusChange(newStatus) {
+    setRecord(prev => prev ? { ...prev, processing_status: newStatus } : prev);
+  }
+
+  // ── Loading ───────────────────────────────────────────────────
+  if (loading) {
     return (
       <AppLayout role="patient" title="Record Details">
-        <EmptyState
-          icon={FileText}
-          title="Record not found"
-          message="This medical record does not exist or has been removed."
-          action={{ label: 'Back to history', onClick: () => window.history.back() }}
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-16)' }}>
+          <LoadingSpinner size="lg" label="Loading document…" />
+        </div>
       </AppLayout>
     );
   }
 
-  const isPrescription = record.document_type === 'prescription';
-  const isBloodReport = record.document_type === 'blood_report';
+  // ── Error / not found ─────────────────────────────────────────
+  if (error || !record) {
+    return (
+      <AppLayout role="patient" title="Record Details">
+        <EmptyState
+          icon={FileText}
+          title="Document not found"
+          message={error || 'This document does not exist or has been removed.'}
+          action={{ label: 'Back to history', onClick: () => navigate('/patient/history') }}
+        />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout role="patient" title="Record Details">
@@ -49,193 +129,77 @@ export default function DocumentDetailsPage() {
         {/* Page header */}
         <div className="dd__header">
           <div className="dd__header-left">
-            <div className="dd__header-icon">
-              <FileText size={20} />
-            </div>
+            <div className="dd__header-icon"><FileText size={20} /></div>
             <div>
               <h2 className="dd__title">{record.document_name}</h2>
               <div className="dd__header-meta">
                 <DocTypeBadge type={record.document_type} />
-                <StatusBadge status={record.verification_status} />
+                <StatusBadge status={record.processing_status} />
                 <span className="dd__meta-date">
                   <Calendar size={12} />
-                  {formatDate(record.upload_date)}
+                  {formatDate(record.created_at)}
                 </span>
               </div>
             </div>
           </div>
           <div className="dd__header-actions">
-            <button className="dd__btn-ghost">
+            <button className="dd__btn-ghost" onClick={handlePreview}>
+              <Eye size={15} />
+              Preview
+            </button>
+            <button className="dd__btn-ghost" onClick={handleDownload}>
               <Download size={15} />
               Download
-            </button>
-            <button className="dd__btn-ghost">
-              <ExternalLink size={15} />
-              Open original
             </button>
           </div>
         </div>
 
         {/* Two-column layout */}
         <div className="dd__layout">
-          {/* Left — document preview */}
+          {/* Left column */}
           <div className="dd__col-left">
-            {/* Document preview */}
-            <section className="dd__card">
-              <h3 className="dd__card-title">Document preview</h3>
-              <div className="dd__preview-placeholder">
-                <div className="dd__preview-placeholder-inner">
-                  <FileText size={36} />
-                  <p>Original document preview</p>
-                  <p className="dd__preview-note">
-                    Secure document viewer available after Supabase Storage integration (Phase 4).
-                  </p>
-                </div>
-              </div>
-            </section>
-
             {/* Document info */}
             <section className="dd__card">
               <h3 className="dd__card-title">Document information</h3>
               <div className="dd__info-grid">
                 <div className="dd__info-item">
-                  <span className="dd__info-label">Doctor</span>
+                  <span className="dd__info-label">Category</span>
                   <span className="dd__info-value">
-                    <User size={13} />
-                    {record.doctor_name}
-                  </span>
-                </div>
-                <div className="dd__info-item">
-                  <span className="dd__info-label">Hospital / Lab</span>
-                  <span className="dd__info-value">
-                    <Building2 size={13} />
-                    {record.hospital}
-                  </span>
-                </div>
-                <div className="dd__info-item">
-                  <span className="dd__info-label">Upload date</span>
-                  <span className="dd__info-value">
-                    <Clock size={13} />
-                    {formatDate(record.upload_date)}
+                    <DocTypeBadge type={record.document_type} />
                   </span>
                 </div>
                 <div className="dd__info-item">
                   <span className="dd__info-label">File type</span>
                   <span className="dd__info-value">
-                    {record.file_type.split('/')[1].toUpperCase()} · {record.size_kb} KB
+                    {record.original_file_type?.split('/')[1]?.toUpperCase() || '—'}
                   </span>
                 </div>
-                {record.notes && (
-                  <div className="dd__info-item dd__info-item--full">
-                    <span className="dd__info-label">Notes</span>
-                    <span className="dd__info-value">{record.notes}</span>
-                  </div>
-                )}
+                <div className="dd__info-item">
+                  <span className="dd__info-label">File size</span>
+                  <span className="dd__info-value">
+                    {formatSize(record.file_size_bytes, record.file_size_kb)}
+                  </span>
+                </div>
+                <div className="dd__info-item">
+                  <span className="dd__info-label">Uploaded</span>
+                  <span className="dd__info-value">
+                    <Clock size={13} />
+                    {formatDate(record.created_at)}
+                  </span>
+                </div>
+                <div className="dd__info-item">
+                  <span className="dd__info-label">AI Status</span>
+                  <span className="dd__info-value">
+                    <StatusBadge status={record.processing_status} />
+                  </span>
+                </div>
+                <div className="dd__info-item">
+                  <span className="dd__info-label">Verification</span>
+                  <span className="dd__info-value">
+                    <StatusBadge status={record.verification_status} />
+                  </span>
+                </div>
               </div>
-            </section>
-          </div>
-
-          {/* Right — AI extracted data */}
-          <div className="dd__col-right">
-            {/* AI extraction */}
-            <section className="dd__card">
-              <div className="dd__card-head">
-                <h3 className="dd__card-title">AI extracted information</h3>
-                <StatusBadge status={record.processing_status} />
-              </div>
-
-              <div className="dd__ai-notice">
-                <AlertCircle size={14} />
-                <span>
-                  AI-extracted data requires verification before use. Uncertain fields are highlighted.
-                  Full AI processing available in Phase 5.
-                </span>
-              </div>
-
-              {isPrescription && record.extracted?.medicines ? (
-                <div className="dd__prescription">
-                  {record.extracted.diagnosis && (
-                    <div className="dd__diagnosis">
-                      <span className="dd__diagnosis-label">Diagnosis</span>
-                      <span className="dd__diagnosis-value">{record.extracted.diagnosis}</span>
-                    </div>
-                  )}
-                  <div className="dd__meds-label">Medicines</div>
-                  {record.extracted.medicines.map((med, i) => (
-                    <div
-                      key={i}
-                      className={`dd__med-card${med.confidence === 'needs_review' ? ' dd__med-card--review' : ''}`}
-                    >
-                      <div className="dd__med-header">
-                        <span className="dd__med-name">{med.name}</span>
-                        {med.confidence === 'needs_review' && (
-                          <span className="dd__med-review-tag">
-                            <AlertCircle size={12} />
-                            Needs review
-                          </span>
-                        )}
-                      </div>
-                      <div className="dd__med-row">
-                        <span className="dd__med-field"><strong>Dosage</strong> {med.dosage}</span>
-                        <span className="dd__med-field"><strong>Frequency</strong> {med.frequency}</span>
-                        <span className="dd__med-field"><strong>Duration</strong> {med.duration}</span>
-                      </div>
-                      {med.instructions && (
-                        <div className="dd__med-instructions">{med.instructions}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : isBloodReport && record.extracted?.tests ? (
-                <div className="dd__blood-report">
-                  <table className="dd__report-table">
-                    <thead>
-                      <tr>
-                        <th>Test</th>
-                        <th>Result</th>
-                        <th>Unit</th>
-                        <th>Reference</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {record.extracted.tests.map((t, i) => (
-                        <tr key={i} className={t.status !== 'normal' ? 'dd__report-row--flag' : ''}>
-                          <td>{t.name}</td>
-                          <td className="dd__report-value">{t.value}</td>
-                          <td>{t.unit}</td>
-                          <td className="dd__report-ref">{t.reference}</td>
-                          <td><StatusBadge status={t.status} /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="dd__report-ai-note">
-                    <div className="dd__report-ai-heading">
-                      <CheckCircle2 size={14} />
-                      AI explanation
-                    </div>
-                    <p className="dd__report-ai-text">
-                      Your hemoglobin and WBC values are within normal range. Platelet count is slightly
-                      below the reference range — this is noted in the original report. Fasting glucose
-                      is marginally elevated. These observations are informational only and do not
-                      constitute medical advice. Please consult your doctor for interpretation.
-                    </p>
-                    <p className="dd__report-ai-disclaimer">
-                      AI explanation · Not a medical diagnosis
-                    </p>
-                  </div>
-                </div>
-              ) : record.extracted?.summary ? (
-                <div className="dd__summary">
-                  <p className="dd__summary-text">{record.extracted.summary}</p>
-                </div>
-              ) : (
-                <div className="dd__ai-placeholder">
-                  <Clock size={28} />
-                  <p>Processing queued — AI extraction available in Phase 5.</p>
-                </div>
-              )}
             </section>
 
             {/* QR sharing placeholder */}
@@ -254,8 +218,41 @@ export default function DocumentDetailsPage() {
               </div>
             </section>
           </div>
+
+          {/* Right column — OCR */}
+          <div className="dd__col-right">
+            <OcrPanel
+              recordId={record.id}
+              processingStatus={record.processing_status}
+              documentType={record.document_type}
+              onStatusChange={handleStatusChange}
+            />
+
+            {/* Notice */}
+            <div className="dd__ai-notice" style={{ marginTop: 'var(--space-4)' }}>
+              <AlertCircle size={14} />
+              <span>
+                Extracted text is provided for reference only. Never use OCR output as a substitute
+                for the original document or professional medical advice.
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Preview modal */}
+      {showPreview && (
+        <DocumentPreviewModal
+          record={record}
+          signedUrl={previewUrl}
+          onClose={() => { setShowPreview(false); setPreviewUrl(null); }}
+          onDownload={handleDownload}
+        />
+      )}
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
     </AppLayout>
   );
 }
